@@ -2,7 +2,6 @@ package com.pluralsight;
 
 import org.apache.commons.dbcp2.BasicDataSource;
 
-import java.nio.file.LinkPermission;
 import java.sql.*;
 import java.util.Scanner;
 
@@ -53,7 +52,7 @@ public class Main {
         }
     }
 
-    public static void printResults(ResultSet results) throws SQLException {
+    public static void printActorResults(ResultSet results) throws SQLException {
 
         ResultSetMetaData metaData = results.getMetaData();
         int columnCount = metaData.getColumnCount();
@@ -81,10 +80,10 @@ public class Main {
                      FROM
                         actors
                      ORDER BY
-                        actor_id
+                        actor_id;
                      """)) {
             ResultSet results = preparedStatement.executeQuery();
-            printResults(results);
+            printActorResults(results);
         } catch (SQLException e) {
             System.out.println("Error: could not retrieve information.");
             System.exit(1);
@@ -111,21 +110,78 @@ public class Main {
                         AND
                         last_name LIKE ?
                      ORDER BY
-                        actor_id
+                        actor_id;
                      """)) {
 
             preparedStatement.setString(1, "%" + inputFirstName + "%");
             preparedStatement.setString(2, "%" + inputLastName + "%");
 
             ResultSet results = preparedStatement.executeQuery();
-            printResults(results);
+            printActorResults(results);
         } catch (SQLException e) {
             System.out.println("Error: could not retrieve information.");
             System.exit(1);
         }
     }
 
+    public static void searchByCategory(BasicDataSource dataSource) {
 
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement preparedStatement = connection.prepareStatement("""
+                     SELECT
+                        category_id,
+                        name
+                     FROM
+                        categories
+                     ORDER BY
+                        category_id;
+                     """)) {
+            ResultSet categoryResults = preparedStatement.executeQuery();
+            while (categoryResults.next()) {
+                String firstName = categoryResults.getString("first_name");  // Use the column name
+                System.out.println(firstName);
+            }
+
+
+        } catch (SQLException e) {
+            System.out.println("Error: could not retrieve category information.");
+            System.exit(1);
+        }
+
+        System.out.println("Which number category is the actor you're looking for in?");
+        int inputCategory = input.nextInt();
+        preparedStatement.setInt(1, inputCategory);
+
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement preparedStatement = connection.prepareStatement("""
+                     SELECT
+                        actor_id,
+                        first_name,
+                        last_name
+                     FROM
+                        actors
+                     WHERE
+                        first_name LIKE ?
+                        AND
+                        last_name LIKE ?
+                     ORDER BY
+                        actor_id;
+                     """)) {
+
+
+            preparedStatement.setInt(1, inputCategory);
+
+            ResultSet results = preparedStatement.executeQuery();
+            printActorResults(results);
+        } catch (SQLException e) {
+            System.out.println("Error: could not retrieve information.");
+            System.exit(1);
+        }
+
+
+
+
+    }
 
 
 
