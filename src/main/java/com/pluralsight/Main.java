@@ -38,11 +38,13 @@ public class Main {
                         0) Exit program
                     """);
 
-            switch (input.nextInt()) {
-                case 1 -> displayAllActors(dataSource);
-                case 2 -> searchByName(dataSource);
-                case 3 -> searchByCategory(dataSource);
-                case 0 -> {
+            char mainMenuOption = input.nextLine().trim().charAt(0);
+
+            switch (mainMenuOption) {
+                case '1' -> displayAllActors(dataSource);
+                case '2' -> searchByName(dataSource);
+                case '3' -> searchByCategory(dataSource);
+                case '0' -> {
                     System.out.println("EXITING PROGRAM...");
                     System.exit(1);
                 }
@@ -54,17 +56,18 @@ public class Main {
 
     public static void printActorResults(ResultSet results) throws SQLException {
 
-        ResultSetMetaData metaData = results.getMetaData();
-        int columnCount = metaData.getColumnCount();
+        if (results.next()) {
+            System.out.println("Your matches are: \n");
+            System.out.printf("|%-8s|%-45s|%-45s|\n", "Actor ID", "First Name", "Last Name");
+            do {
+                int actorID = results.getInt(1);
+                String firstName = results.getString(2);
+                String lastName = results.getString(3);
 
-        System.out.printf("|%-5s|%-45s|%-45s|\n", "Actor ID", "First Name", "Last Name");
-
-        while (results.next()) {
-            int actorID = results.getInt(1);
-            String firstName = results.getString(2);
-            String lastName = results.getString(3);
-
-            System.out.printf("|%-5s|%-45s|%-45s|\n", actorID, firstName, lastName);
+                System.out.printf("|%-8s|%-45s|%-45s|\n", actorID, firstName, lastName);
+            } while (results.next());
+        } else {
+            System.out.println("Could not find any matches.");
         }
     }
 
@@ -78,12 +81,13 @@ public class Main {
                         first_name,
                         last_name
                      FROM
-                        actors
+                        actor
                      ORDER BY
                         actor_id;
                      """)) {
-            ResultSet results = preparedStatement.executeQuery();
-            printActorResults(results);
+            try (ResultSet results = preparedStatement.executeQuery()) {
+                printActorResults(results);
+            }
         } catch (SQLException e) {
             System.out.println("Error: could not retrieve information.");
             System.exit(1);
@@ -104,7 +108,7 @@ public class Main {
                         first_name,
                         last_name
                      FROM
-                        actors
+                        actor
                      WHERE
                         first_name LIKE ?
                         AND
@@ -116,8 +120,12 @@ public class Main {
             preparedStatement.setString(1, "%" + inputFirstName + "%");
             preparedStatement.setString(2, "%" + inputLastName + "%");
 
-            ResultSet results = preparedStatement.executeQuery();
-            printActorResults(results);
+            try (ResultSet results = preparedStatement.executeQuery()) {
+                printActorResults(results);
+            } catch (SQLException e) {
+                System.out.println("Error: could not execute query.");
+                System.exit(2);
+            }
         } catch (SQLException e) {
             System.out.println("Error: could not retrieve information.");
             System.exit(1);
@@ -132,59 +140,49 @@ public class Main {
                         category_id,
                         name
                      FROM
-                        categories
+                        category
                      ORDER BY
                         category_id;
                      """)) {
-            ResultSet categoryResults = preparedStatement.executeQuery();
-            while (categoryResults.next()) {
-                String firstName = categoryResults.getString("first_name");  // Use the column name
-                System.out.println(firstName);
+            try (ResultSet categoryResults = preparedStatement.executeQuery()) {
+                System.out.printf("|%-11s|%-25s|\n", "Category ID", "Category");
+                while (categoryResults.next()) {
+                    System.out.printf("|%-11s|%-25s|\n",
+                            categoryResults.getInt(1), categoryResults.getString(2));
+                }
             }
-
-
         } catch (SQLException e) {
             System.out.println("Error: could not retrieve category information.");
             System.exit(1);
         }
 
-        System.out.println("Which number category is the actor you're looking for in?");
+        System.out.println("Which number category do you want to look through?");
         int inputCategory = input.nextInt();
-        preparedStatement.setInt(1, inputCategory);
+        input.nextLine();
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement preparedStatement = connection.prepareStatement("""
-                     SELECT
-                        actor_id,
-                        first_name,
-                        last_name
+                     SELECT DISTINCT
+                        a.actor_id,
+                        a.first_name,
+                        a.last_name
                      FROM
-                        actors
+                        film_category fc
+                        JOIN film_actor fa ON (fc.film_id = fa.film_id)
+                        JOIN actor a ON (fa.actor_id = a.actor_id)
                      WHERE
-                        first_name LIKE ?
-                        AND
-                        last_name LIKE ?
+                        fc.category_id = ?
                      ORDER BY
                         actor_id;
                      """)) {
-
-
             preparedStatement.setInt(1, inputCategory);
 
-            ResultSet results = preparedStatement.executeQuery();
-            printActorResults(results);
+            try (ResultSet results = preparedStatement.executeQuery()) {
+                printActorResults(results);
+            }
         } catch (SQLException e) {
             System.out.println("Error: could not retrieve information.");
             System.exit(1);
         }
-
-
-
-
     }
-
-
-
-
-
 }
